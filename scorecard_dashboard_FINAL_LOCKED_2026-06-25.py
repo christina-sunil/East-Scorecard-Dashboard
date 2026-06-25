@@ -1209,7 +1209,8 @@ st.dataframe(
     use_container_width=True
 )
 
-    if not trend_month_chart.empty:
+if not trend_month_chart.empty:
+
         st.markdown("### 📈 Trend Chart — SLA %, FDR %, Median TTR")
 
         trend_chart = make_metric_trend_chart(
@@ -1224,11 +1225,7 @@ st.dataframe(
 
     st.subheader("Week on Week")
 
-    st.dataframe(
-        wow.round(2).style.applymap(
-            style_sla_pct,
-            subset=["SLA %"]
-        ),
+        wow.round(2),
         use_container_width=True,
     )
 
