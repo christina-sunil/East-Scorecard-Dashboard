@@ -1179,17 +1179,16 @@ with tab1:
             inplace=True,
         )
 
-        top_table["Priority Score"] = top_table["Priority Score"].round(2)
+        
+top_table["Priority Score"] = top_table["Priority Score"].round(2)
 
-        st.dataframe(
-            top_table.style.applymap(
-                style_sla_remaining,
-                subset=["SLA Remaining (Biz Days)"]
-            ),
-            use_container_width=True,
-        )
-    else:
-        st.info("No current backlog items available for priority scoring.")
+st.dataframe(
+    top_table,
+    use_container_width=True
+)
+
+else:
+    st.info("No current backlog items available for priority scoring.")
 
 
 # =========================================================
@@ -1204,13 +1203,11 @@ with tab2:
 
     st.subheader("Month on Month")
 
-    st.dataframe(
-        mom.round(2).style.applymap(
-            style_sla_pct,
-            subset=["SLA %"]
-        ),
-        use_container_width=True,
-    )
+    
+st.dataframe(
+    mom.round(2),
+    use_container_width=True
+)
 
     if not trend_month_chart.empty:
         st.markdown("### 📈 Trend Chart — SLA %, FDR %, Median TTR")
