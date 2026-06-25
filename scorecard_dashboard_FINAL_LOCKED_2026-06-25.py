@@ -1167,25 +1167,25 @@ with tab1:
             "Priority Score",
         ]
 
-        top_table = priority_view[cols].head(20).copy()
+       
+if not top_table.empty:
 
-        top_table.rename(
-            columns={
-                "number": "Ticket",
-                "source_table": "Source",
-                "assigned_to": "Assignee",
-                "assignment_group": "Assignment Group",
-            },
-            inplace=True,
-        )
+    top_table.rename(
+        columns={
+            "number": "Ticket",
+            "source_table": "Source",
+            "assigned_to": "Assignee",
+            "assignment_group": "Assignment Group",
+        },
+        inplace=True,
+    )
 
-        
-top_table["Priority Score"] = top_table["Priority Score"].round(2)
+    top_table["Priority Score"] = top_table["Priority Score"].round(2)
 
-st.dataframe(
-    top_table,
-    use_container_width=True
-)
+    st.dataframe(
+        top_table,
+        use_container_width=True
+    )
 
 else:
     st.info("No current backlog items available for priority scoring.")
