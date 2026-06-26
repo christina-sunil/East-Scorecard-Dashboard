@@ -5,20 +5,31 @@ import numpy as np
 import altair as alt
 from datetime import date
 
-# ================= CONFIG =================
+# =========================================================
+# CONFIG
+# =========================================================
+
 BASE_URL = "https://progress1.service-now.com"
 USER = "github_servicenow_api"
-PASSWORD = "wL<c&sLHGso(mH3mIRs=byF5C%97o>P3z[K+QZSD"
+PASSWORD = "wL<c&sLHGso(mH3mIRs=byF5C%97o>P3z[K+QZSD"   # ✅ YOU CAN PASTE DIRECTLY HERE
 
 REQUEST_TABLE = "sc_req_item"
 INCIDENT_TABLE = "incident"
+
 SLA_TARGET_DAYS = 5
+
+# =========================================================
+# PAGE
+# =========================================================
 
 st.set_page_config(layout="wide")
 st.title("📊 EAST Scorecard Dashboard")
 
-# ================= SIDEBAR =================
-start = st.sidebar.date_input("Start", date(2025, 12, 1))
+# =========================================================
+# SIDEBAR
+# =========================================================
+
+start = st.sidebar.date_input("Start", date(2025,12,1))
 end = st.sidebar.date_input("End", date.today())
 
 START = pd.Timestamp(start)
@@ -26,21 +37,40 @@ END = pd.Timestamp(end)
 
 include_incidents = st.sidebar.checkbox("Include incidents", True)
 
-# ================= FETCH =================
-@st.cache_data
+# =========================================================
+# FETCH FUNCTION (FIXED)
+# =========================================================
+
+@st.cache_data(show_spinner=False)
 def fetch(table, query):
     url = f"{BASE_URL}/api/now/table/{table}"
+
     params = {
         "sysparm_query": query,
         "sysparm_limit": 10000,
         "sysparm_display_value": "true"
     }
-    r = requests.get(url, auth=(USER, PASSWORD), params=params)
-    if r.status_code != 200:
-        return pd.DataFrame()
-    return pd.json_normalize(r.json()["result"])
 
-# ================= LOAD =================
+    try:
+        r = requests.get(url, auth=(USER, PASSWORD), params=params)
+
+        if r.status_code != 200:
+            return pd.DataFrame()
+
+        data = r.json()
+
+        if "result" not in data:
+            return pd.DataFrame()
+
+        return pd.json_normalize(data["result"])
+
+    except:
+        return pd.DataFrame()
+
+# =========================================================
+# LOAD DATA
+# =========================================================
+
 start_str = START.strftime("%Y-%m-%d")
 end_str = END.strftime("%Y-%m-%d")
 
@@ -53,21 +83,30 @@ inc_close = fetch(INCIDENT_TABLE, f"closed_at>={start_str}^closed_at<={end_str}"
 df_open = pd.concat([req_open, inc_open])
 df_close = pd.concat([req_close, inc_close])
 
-# ================= CLEAN =================
-df_open["opened_at"] = pd.to_datetime(df_open["opened_at"], errors="coerce")
-df_close["closed_at"] = pd.to_datetime(df_close["closed_at"], errors="coerce")
+# =========================================================
+# CLEAN
+# =========================================================
+
+df_open["opened_at"] = pd.to_datetime(df_open.get("opened_at"), errors="coerce")
+df_close["closed_at"] = pd.to_datetime(df_close.get("closed_at"), errors="coerce")
 
 df_close["Biz Days"] = (df_close["closed_at"] - df_close["opened_at"]).dt.days
 
-# ================= METRICS =================
+# =========================================================
+# METRICS
+# =========================================================
+
 created = len(df_open)
 closed = len(df_close)
 backlog = created - closed
 
-sla_pct = (df_close["Biz Days"] <= SLA_TARGET_DAYS).mean()*100 if len(df_close) > 0 else 0
-fdr_pct = (df_close["Biz Days"] == 0).mean()*100 if len(df_close) > 0 else 0
+sla_pct = (df_close["Biz Days"] <= SLA_TARGET_DAYS).mean()*100 if len(df_close)>0 else 0
+fdr_pct = (df_close["Biz Days"] == 0).mean()*100 if len(df_close)>0 else 0
 
-# ================= MOM =================
+# =========================================================
+# MOM
+# =========================================================
+
 df_open["Month"] = df_open["opened_at"].dt.to_period("M").astype(str)
 df_close["Month"] = df_close["closed_at"].dt.to_period("M").astype(str)
 
@@ -76,7 +115,10 @@ mom_close = df_close.groupby("Month").size().reset_index(name="Closed")
 
 mom = pd.merge(mom_open, mom_close, on="Month", how="outer").fillna(0)
 
-# ================= BACKLOG TREND =================
+# =========================================================
+# BACKLOG TREND
+# =========================================================
+
 months = pd.date_range(START, END, freq="ME")
 
 rows = []
@@ -86,15 +128,21 @@ for m in months:
 
     rows.append({
         "Month": m.strftime("%b %Y"),
-        "Backlog": int(cnt)
+        "Backlog": cnt
     })
 
 backlog_trend = pd.DataFrame(rows)
 
-# ================= TABS =================
+# =========================================================
+# TABS
+# =========================================================
+
 tab1, tab2 = st.tabs(["Overview", "Trends"])
 
-# ================= OVERVIEW =================
+# =========================================================
+# OVERVIEW
+# =========================================================
+
 with tab1:
 
     c1, c2, c3, c4, c5 = st.columns(5)
@@ -102,10 +150,18 @@ with tab1:
     c1.metric("Created", created)
     c2.metric("Closed", closed)
     c3.metric("Backlog", backlog)
-    c4.metric("SLA %", round(sla_pct, 2))
-    c5.metric("FDR %", round(fdr_pct, 2))
+    c4.metric("SLA %", round(sla_pct,2))
+    c5.metric("FDR %", round(fdr_pct,2))
 
-# ================= TRENDS =================
+    st.markdown("### 📊 Summary")
+
+    st.write(f"Total backlog: {backlog}")
+    st.write(f"SLA Performance: {round(sla_pct,2)}%")
+
+# =========================================================
+# TRENDS
+# =========================================================
+
 with tab2:
 
     st.subheader("Month on Month")
@@ -115,7 +171,7 @@ with tab2:
     else:
         st.info("No data")
 
-    st.markdown("### 📈 Trend Chart")
+    st.subheader("Trend Chart")
 
     if not mom.empty:
         chart = alt.Chart(mom).mark_line(point=True).encode(
@@ -123,8 +179,6 @@ with tab2:
             y="Closed:Q"
         )
         st.altair_chart(chart, use_container_width=True)
-
-    st.markdown("---")
 
     st.subheader("Backlog Trend")
 
